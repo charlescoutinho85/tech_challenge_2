@@ -1,0 +1,44 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: poetry run python -c "from src.data.preprocessors import 
+      MovieLensPreprocessor; import pandas as pd; df = 
+      pd.read_csv('data/raw/ratings.csv'); 
+      MovieLensPreprocessor().process(df).to_csv('data/processed/clean.csv', 
+      index=False)"
+    deps:
+    - path: data/raw/ratings.csv
+      hash: md5
+      md5: cf12b74f9ad4b94a011f079e26d4270a
+      size: 877076222
+    - path: src/data/preprocessors.py
+      hash: md5
+      md5: 259b364fdc1bd7702cfcdeeb95632f47
+      size: 534
+    outs:
+    - path: data/processed/clean.csv
+      hash: md5
+      md5: bb6ed09fa341d1a2eaef87fd5dcb8f88
+      size: 1244494898
+  train_baseline:
+    cmd: poetry run python -m src.train --model rf_baseline
+    deps:
+    - path: data/processed/clean.csv
+      hash: md5
+      md5: bb6ed09fa341d1a2eaef87fd5dcb8f88
+      size: 1244494898
+    - path: src/models/factory.py
+      hash: md5
+      md5: 55ae3fbb3aceba36c41f1a81a92c1503
+      size: 812
+  train_neural_net:
+    cmd: poetry run python -m src.train --model mlp
+    deps:
+    - path: data/processed/clean.csv
+      hash: md5
+      md5: bb6ed09fa341d1a2eaef87fd5dcb8f88
+      size: 1244494898
+    - path: src/models/networks.py
+      hash: md5
+      md5: 072d02986ea9f210a4e098a658620de1
+      size: 658

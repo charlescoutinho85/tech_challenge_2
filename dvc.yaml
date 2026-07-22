@@ -1,0 +1,20 @@
+stages:
+  preprocess:
+    cmd: poetry run python -c "from src.data.preprocessors import MovieLensPreprocessor; import pandas as pd; df = pd.read_csv('data/raw/ratings.csv'); MovieLensPreprocessor().process(df).to_csv('data/processed/clean.csv', index=False)"
+    deps:
+      - data/raw/ratings.csv
+      - src/data/preprocessors.py
+    outs:
+      - data/processed/clean.csv
+
+  train_baseline:
+    cmd: poetry run python -m src.train --model rf_baseline
+    deps:
+      - data/processed/clean.csv
+      - src/models/factory.py
+
+  train_neural_net:
+    cmd: poetry run python -m src.train --model mlp
+    deps:
+      - data/processed/clean.csv
+      - src/models/networks.py
