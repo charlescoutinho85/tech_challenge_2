@@ -11,4 +11,4 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY . .
 
 # Comando padrão para rodar o treino do MLP
-CMD ["python", "-m", "src.train", "--model", "mlp"]
+CMD ["python", "-m", "src.training.train", "--model", "mlp"]

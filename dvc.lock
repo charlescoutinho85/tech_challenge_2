@@ -21,7 +21,7 @@ stages:
       md5: bb6ed09fa341d1a2eaef87fd5dcb8f88
       size: 1244494898
   train_baseline:
-    cmd: poetry run python -m src.train --model rf_baseline
+    cmd: poetry run python -m src.training.train --model rf_baseline
     deps:
     - path: data/processed/clean.csv
       hash: md5
@@ -32,7 +32,7 @@ stages:
       md5: 55ae3fbb3aceba36c41f1a81a92c1503
       size: 812
   train_neural_net:
-    cmd: poetry run python -m src.train --model mlp
+    cmd: poetry run python -m src.training.train --model mlp
     deps:
     - path: data/processed/clean.csv
       hash: md5

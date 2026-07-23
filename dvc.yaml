@@ -8,13 +8,13 @@ stages:
       - data/processed/clean.csv
 
   train_baseline:
-    cmd: poetry run python -m src.train --model rf_baseline
+    cmd: poetry run python -m src.training.train --model rf_baseline
     deps:
       - data/processed/clean.csv
       - src/models/factory.py
 
   train_neural_net:
-    cmd: poetry run python -m src.train --model mlp
+    cmd: poetry run python -m src.training.train --model mlp
     deps:
       - data/processed/clean.csv
       - src/models/networks.py
