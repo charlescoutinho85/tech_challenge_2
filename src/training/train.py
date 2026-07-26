@@ -6,6 +6,7 @@ import mlflow
 import pandas as pd
 import torch
 
+from src.config import settings
 from src.data.preprocessors import MovieLensPreprocessor
 from src.models.factory import ModelFactory
 from src.training.metrics import evaluate_predictions
@@ -31,7 +32,7 @@ def load_dataset(data_path: str) -> pd.DataFrame:
     Returns:
         Dataframe pré-processado com os índices de usuário e filme codificados.
     """
-    df = pd.read_csv(data_path).sample(1000)  # Amostra didática
+    df = pd.read_csv(data_path).sample(settings.sample_size)  # Amostra didática
     return MovieLensPreprocessor().process(df)
 
 
@@ -63,6 +64,8 @@ def train_pipeline(data_path: str, model_type: str) -> None:
     """
     df = load_dataset(data_path)
 
+    mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
+
     with mlflow.start_run():
         mlflow.log_param("model_type", model_type)
 
@@ -83,4 +86,4 @@ def train_pipeline(data_path: str, model_type: str) -> None:
 
 if __name__ == "__main__":
     args = parse_args()
-    train_pipeline("data/raw/ratings.csv", args.model)
+    train_pipeline(settings.raw_data_path, args.model)

@@ -4,6 +4,7 @@ from typing import Any
 
 from sklearn.ensemble import RandomForestRegressor
 
+from src.config import settings
 from src.models.networks import MLPEmbedding
 
 
@@ -29,10 +30,14 @@ class ModelFactory:
             return MLPEmbedding(
                 num_users=kwargs["num_users"],
                 num_items=kwargs["num_items"],
+                emb_dim=settings.mlp_emb_dim,
             )
         if model_type == "rf_baseline":
             # Random Forest ignora num_users/num_items, usa apenas os
             # próprios hiperparâmetros
-            return RandomForestRegressor(n_estimators=50, random_state=42)
+            return RandomForestRegressor(
+                n_estimators=settings.rf_n_estimators,
+                random_state=settings.random_seed,
+            )
 
         raise ValueError(f"Modelo {model_type} desconhecido.")
