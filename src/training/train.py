@@ -32,7 +32,9 @@ def load_dataset(data_path: str) -> pd.DataFrame:
     Returns:
         Dataframe pré-processado com os índices de usuário e filme codificados.
     """
-    df = pd.read_csv(data_path).sample(settings.sample_size)  # Amostra didática
+    df = pd.read_csv(data_path).sample(
+        settings.sample_size, random_state=settings.random_seed
+    )  # Amostra didática
     return MovieLensPreprocessor().process(df)
 
 
