@@ -11,10 +11,19 @@ stages:
     cmd: poetry run python -m src.training.train --model rf_baseline
     deps:
       - data/processed/clean.csv
+      - src/config.py
       - src/models/factory.py
+      - src/tracking/mlflow_tracker.py
+      - src/training/metrics.py
+      - src/training/train.py
 
   train_neural_net:
     cmd: poetry run python -m src.training.train --model mlp
     deps:
       - data/processed/clean.csv
+      - src/config.py
+      - src/models/factory.py
       - src/models/networks.py
+      - src/tracking/mlflow_tracker.py
+      - src/training/metrics.py
+      - src/training/train.py

@@ -6,7 +6,6 @@ __pycache__/
 .ruff_cache/
 data/raw/*
 data/processed/*
-data/features/*
 !data/**/*.dvc
 !data/**/.gitignore
 !data/**/.gitkeep
