@@ -1,14 +1,30 @@
-FROM python:3.11-slim
+# ----------- Stage 1: Builder -----------
+FROM python:3.11-slim AS builder
+
+ENV POETRY_VERSION=2.4.1 \
+    PIP_NO_CACHE_DIR=1
+
+RUN pip install --no-cache-dir "poetry==${POETRY_VERSION}"
 
 WORKDIR /app
 
-# Instala as dependências essenciais do sistema e os pacotes Python em uma única camada segura
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir pandas numpy pyyaml scikit-learn mlflow scikit-skops && \
-    pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+COPY pyproject.toml poetry.lock poetry.toml ./
 
-# Copia o restante do código do projeto
-COPY . .
+RUN poetry install --no-root --only main --no-interaction --no-ansi
+
+# ----------- Stage 2: Runtime -----------
+FROM python:3.11-slim AS runtime
+
+WORKDIR /app
+
+ENV PATH="/app/.venv/bin:$PATH"
+
+COPY --from=builder /app/.venv /app/.venv
+
+COPY src/ ./src/
+COPY scripts/ ./scripts/
+COPY configs/ ./configs/
+COPY dvc.yaml dvc.lock ./
 
 # Comando padrão para rodar o treino do MLP
 CMD ["python", "-m", "src.training.train", "--model", "mlp"]
