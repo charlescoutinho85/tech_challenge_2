@@ -27,10 +27,26 @@ stages:
       hash: md5
       md5: bb6ed09fa341d1a2eaef87fd5dcb8f88
       size: 1244494898
+    - path: src/config.py
+      hash: md5
+      md5: af6cf97070ca43a4c52360c289efaf84
+      size: 831
     - path: src/models/factory.py
       hash: md5
-      md5: 801c6800e0aeb794d3c41d4bfb10aec7
-      size: 1298
+      md5: 5765f3ae278bb0209b07319fb5909501
+      size: 1468
+    - path: src/tracking/mlflow_tracker.py
+      hash: md5
+      md5: 6d87b8fe04e4da538a74f47155090585
+      size: 1837
+    - path: src/training/metrics.py
+      hash: md5
+      md5: 11ad5bb72e98909aad9614cc3dd5e148
+      size: 863
+    - path: src/training/train.py
+      hash: md5
+      md5: 09a752c0c233b1220c047deb99343902
+      size: 7235
   train_neural_net:
     cmd: poetry run python -m src.training.train --model mlp
     deps:
@@ -38,7 +54,27 @@ stages:
       hash: md5
       md5: bb6ed09fa341d1a2eaef87fd5dcb8f88
       size: 1244494898
+    - path: src/config.py
+      hash: md5
+      md5: af6cf97070ca43a4c52360c289efaf84
+      size: 831
+    - path: src/models/factory.py
+      hash: md5
+      md5: 5765f3ae278bb0209b07319fb5909501
+      size: 1468
     - path: src/models/networks.py
       hash: md5
       md5: 5f808dade3ce262d83ebff0fcbeaa647
       size: 1356
+    - path: src/tracking/mlflow_tracker.py
+      hash: md5
+      md5: 6d87b8fe04e4da538a74f47155090585
+      size: 1837
+    - path: src/training/metrics.py
+      hash: md5
+      md5: 11ad5bb72e98909aad9614cc3dd5e148
+      size: 863
+    - path: src/training/train.py
+      hash: md5
+      md5: 09a752c0c233b1220c047deb99343902
+      size: 7235

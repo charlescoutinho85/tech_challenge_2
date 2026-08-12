@@ -8,14 +8,13 @@ services:
       - server
       - --host=0.0.0.0
       - --port=5000
-      - --backend-store-uri=sqlite:////app/mlflow.db
-      - --default-artifact-root=/app/mlruns
+      - --backend-store-uri=sqlite:////app/mlflow-data/mlflow.db
+      - --default-artifact-root=/app/mlflow-data/mlruns
       - --allowed-hosts=localhost:5000,mlflow:5000
     ports:
       - "5000:5000"
     volumes:
-      - ./mlflow.db:/app/mlflow.db
-      - ./mlruns:/app/mlruns
+      - ./mlflow-data:/app/mlflow-data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000')"]
       interval: 10s
@@ -30,7 +29,8 @@ services:
       mlflow:
         condition: service_healthy
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
     volumes:

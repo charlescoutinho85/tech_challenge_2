@@ -10,4 +10,5 @@ data/processed/*
 !data/**/.gitignore
 !data/**/.gitkeep
 mlruns/
+mlflow-data/
 *.db
