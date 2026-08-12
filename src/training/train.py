@@ -207,6 +207,7 @@ def train_pipeline(data_path: str, model_type: str) -> None:
         mlflow.log_param("sample_size", settings.sample_size)
         mlflow.log_param("test_size", settings.test_size)
 
+        torch.manual_seed(settings.random_seed)
         model = ModelFactory.create_model(
             model_type, num_users=num_users, num_items=num_items
         )
