@@ -12,3 +12,5 @@ data/processed/*
 mlruns/
 mlflow-data/
 *.db
+models/*.csv
+models/*.pt

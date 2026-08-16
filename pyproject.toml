@@ -13,7 +13,9 @@ dependencies = [
     "mlflow (>=3.14.0,<4.0.0)",
     "dvc (>=3.67.1,<4.0.0)",
     "python-dotenv (>=1.2.2,<2.0.0)",
-    "pydantic-settings (>=2.14.2,<3.0.0)"
+    "pydantic-settings (>=2.14.2,<3.0.0)",
+    "fastapi (>=0.115,<1.0)",
+    "uvicorn (>=0.34,<1.0)"
 ]
 
 

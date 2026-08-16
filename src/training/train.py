@@ -1,5 +1,6 @@
 """Script de treino para o pipeline de recomendação MovieLens."""
-
+from src.data.preprocessors import MovieLensPreprocessor
+from pathlib import Path
 import argparse
 
 import mlflow
@@ -189,7 +190,41 @@ def predict(model: object, model_type: str, df: pd.DataFrame) -> np.ndarray:
         users, items, _ = _to_tensors(df)
         return model(users, items).numpy()
 
+def save_model_for_api(
+    model: nn.Module,
+    num_users: int,
+    num_items: int,
+    data_path: str,
+) -> None:
+    """Salva o modelo e os mapeamentos necessários para a API."""
 
+    models_dir = Path("models")
+    models_dir.mkdir(parents=True, exist_ok=True)
+
+    model_path = models_dir / "model.pt"
+
+    torch.save(
+        {
+            "model_state_dict": model.state_dict(),
+            "num_users": num_users,
+            "num_items": num_items,
+        },
+        model_path,
+    )
+
+    original_data = pd.read_csv(settings.raw_data_path)
+
+    preprocessor = MovieLensPreprocessor()
+    processed = preprocessor.process(original_data)
+
+    mappings = processed[
+        ["userId", "user_idx", "movieId", "movie_idx"]
+    ].drop_duplicates()
+
+    mappings.to_csv(
+        models_dir / "mappings.csv",
+        index=False,
+    )
 def train_pipeline(data_path: str, model_type: str) -> None:
     """Executa o pipeline de treino ponta a ponta e loga o resultado no MLflow.
 
@@ -212,6 +247,13 @@ def train_pipeline(data_path: str, model_type: str) -> None:
             model_type, num_users=num_users, num_items=num_items
         )
         model = fit_model(model, model_type, train_df, test_df)
+        if model_type == "mlp":
+            save_model_for_api(
+            model=model,
+            num_users=num_users,
+            num_items=num_items,
+            data_path=data_path,
+    )
 
         preds = predict(model, model_type, test_df)
         metrics = evaluate_predictions(test_df[TARGET_COLUMN].values, preds)
