@@ -10,6 +10,7 @@ class Settings(BaseSettings):
 
     raw_data_path: str = "data/raw/ratings.csv"
     processed_data_path: str = "data/processed/clean.csv"
+    models_dir: str = "models"
     sample_size: int = 1000
     test_size: float = 0.2
     mlp_emb_dim: int = 32

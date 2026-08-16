@@ -1,3 +1,6 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
 
 from src.api.logging_config import setup_logging
@@ -11,29 +14,30 @@ from src.api.schemas import (
     RecommendationResponse,
 )
 
-
 # Configuração do logging
 setup_logging()
+
+
+predictor = Predictor()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Carrega o modelo quando a API é iniciada."""
+    predictor.load()
+    yield
 
 
 app = FastAPI(
     title="MovieLens Recommendation API",
     description="API para previsão de ratings e recomendações.",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 
 # Middleware para registrar requisições e calcular latência
 app.middleware("http")(log_requests)
-
-
-predictor = Predictor()
-
-
-@app.on_event("startup")
-def load_model() -> None:
-    """Carrega o modelo quando a API é iniciada."""
-    predictor.load()
 
 
 @app.get("/health", response_model=HealthResponse)

@@ -1,7 +1,8 @@
 """Script de treino para o pipeline de recomendação MovieLens."""
-from src.data.preprocessors import MovieLensPreprocessor
-from pathlib import Path
+
 import argparse
+import pickle
+from pathlib import Path
 
 import mlflow
 import numpy as np
@@ -35,7 +36,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_dataset(data_path: str) -> tuple[pd.DataFrame, int, int]:
+def load_dataset(data_path: str) -> tuple[pd.DataFrame, pd.DataFrame, int, int]:
     """Carrega o dataset pré-processado e sorteia a amostra didática de treino.
 
     As dimensões dos embeddings são calculadas a partir do dataset completo (antes
@@ -46,13 +47,14 @@ def load_dataset(data_path: str) -> tuple[pd.DataFrame, int, int]:
         data_path: Caminho para o CSV pré-processado (saída do stage `preprocess`).
 
     Returns:
-        Tupla (amostra sorteada, número total de usuários, número total de filmes).
+        Tupla (amostra sorteada, dataset completo, número total de usuários,
+        número total de filmes).
     """
     df = pd.read_csv(data_path)
     num_users = int(df["user_idx"].max()) + 1
     num_items = int(df["movie_idx"].max()) + 1
     sample = df.sample(settings.sample_size, random_state=settings.random_seed)
-    return sample, num_users, num_items
+    return sample, df, num_users, num_items
 
 
 def split_dataset(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -190,18 +192,25 @@ def predict(model: object, model_type: str, df: pd.DataFrame) -> np.ndarray:
         users, items, _ = _to_tensors(df)
         return model(users, items).numpy()
 
+
 def save_model_for_api(
     model: nn.Module,
     num_users: int,
     num_items: int,
-    data_path: str,
+    data: pd.DataFrame,
 ) -> None:
-    """Salva o modelo e os mapeamentos necessários para a API."""
+    """Salva o modelo e os mapeamentos de IDs necessários para a API.
 
-    models_dir = Path("models")
+    Args:
+        model: Modelo MLP treinado.
+        num_users: Número total de usuários no catálogo.
+        num_items: Número total de filmes no catálogo.
+        data: Dataset pré-processado completo (já contém `user_idx`/`movie_idx`),
+            usado para extrair os mapeamentos únicos de usuário e filme sem
+            reprocessar o dataset bruto novamente.
+    """
+    models_dir = Path(settings.models_dir)
     models_dir.mkdir(parents=True, exist_ok=True)
-
-    model_path = models_dir / "model.pt"
 
     torch.save(
         {
@@ -209,22 +218,37 @@ def save_model_for_api(
             "num_users": num_users,
             "num_items": num_items,
         },
-        model_path,
+        models_dir / "model.pt",
     )
 
-    original_data = pd.read_csv(settings.raw_data_path)
-
-    preprocessor = MovieLensPreprocessor()
-    processed = preprocessor.process(original_data)
-
-    mappings = processed[
-        ["userId", "user_idx", "movieId", "movie_idx"]
-    ].drop_duplicates()
-
-    mappings.to_csv(
-        models_dir / "mappings.csv",
-        index=False,
+    data[["userId", "user_idx"]].drop_duplicates().to_csv(
+        models_dir / "user_mappings.csv", index=False
     )
+    data[["movieId", "movie_idx"]].drop_duplicates().to_csv(
+        models_dir / "movie_mappings.csv", index=False
+    )
+
+    _save_interactions(data, models_dir)
+
+
+def _save_interactions(data: pd.DataFrame, models_dir: Path) -> None:
+    """Pré-computa e persiste os filmes já avaliados por cada usuário.
+
+    Faz esse agrupamento uma única vez em tempo de treino, para que a API não
+    precise reler o dataset bruto inteiro e reagrupá-lo a cada startup.
+
+    Args:
+        data: Dataset pré-processado completo.
+        models_dir: Diretório onde os artefatos da API são salvos.
+    """
+    interactions = {
+        int(user_id): set(group["movieId"].astype(int))
+        for user_id, group in data.groupby("userId")
+    }
+    with open(models_dir / "interactions.pkl", "wb") as f:
+        pickle.dump(interactions, f)
+
+
 def train_pipeline(data_path: str, model_type: str) -> None:
     """Executa o pipeline de treino ponta a ponta e loga o resultado no MLflow.
 
@@ -232,7 +256,7 @@ def train_pipeline(data_path: str, model_type: str) -> None:
         data_path: Caminho para o CSV pré-processado de ratings.
         model_type: Identificador do modelo a treinar, ex. "mlp" ou "rf_baseline".
     """
-    sample, num_users, num_items = load_dataset(data_path)
+    sample, full_df, num_users, num_items = load_dataset(data_path)
     train_df, test_df = split_dataset(sample)
 
     configure_tracking()
@@ -249,11 +273,11 @@ def train_pipeline(data_path: str, model_type: str) -> None:
         model = fit_model(model, model_type, train_df, test_df)
         if model_type == "mlp":
             save_model_for_api(
-            model=model,
-            num_users=num_users,
-            num_items=num_items,
-            data_path=data_path,
-    )
+                model=model,
+                num_users=num_users,
+                num_items=num_items,
+                data=full_df,
+            )
 
         preds = predict(model, model_type, test_df)
         metrics = evaluate_predictions(test_df[TARGET_COLUMN].values, preds)

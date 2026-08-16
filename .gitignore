@@ -14,3 +14,4 @@ mlflow-data/
 *.db
 models/*.csv
 models/*.pt
+models/*.pkl

@@ -1,3 +1,4 @@
+import pickle
 from pathlib import Path
 
 import pandas as pd
@@ -19,38 +20,34 @@ class Predictor:
 
     def load(self) -> None:
         """Carrega modelo, mapeamentos e histórico de interações."""
-        model_path = Path("models/model.pt")
-        mapping_path = Path("models/mappings.csv")
+        models_dir = Path(settings.models_dir)
+        model_path = models_dir / "model.pt"
+        user_mapping_path = models_dir / "user_mappings.csv"
+        movie_mapping_path = models_dir / "movie_mappings.csv"
+        interactions_path = models_dir / "interactions.pkl"
 
-        self._validate_files(model_path, mapping_path)
+        self._validate_files(
+            model_path, user_mapping_path, movie_mapping_path, interactions_path
+        )
 
-        mappings = pd.read_csv(mapping_path)
-        self._load_mappings(mappings)
+        self._load_mappings(user_mapping_path, movie_mapping_path)
         self._load_model(model_path)
-        self._load_interactions()
+        self._load_interactions(interactions_path)
 
     @staticmethod
-    def _validate_files(
-        model_path: Path,
-        mapping_path: Path,
-    ) -> None:
+    def _validate_files(*paths: Path) -> None:
         """Valida a existência dos arquivos necessários."""
-        if not model_path.exists():
-            raise FileNotFoundError(f"Modelo não encontrado em: {model_path}")
+        for path in paths:
+            if not path.exists():
+                raise FileNotFoundError(f"Arquivo não encontrado em: {path}")
 
-        if not mapping_path.exists():
-            raise FileNotFoundError(
-                f"Mapeamentos não encontrados em: {mapping_path}"
-            )
+    def _load_mappings(self, user_mapping_path: Path, movie_mapping_path: Path) -> None:
+        """Carrega os mapeamentos dos IDs de usuário e de filme."""
+        users = pd.read_csv(user_mapping_path)
+        movies = pd.read_csv(movie_mapping_path)
 
-    def _load_mappings(self, mappings: pd.DataFrame) -> None:
-        """Carrega os mapeamentos dos IDs."""
-        self.user_mapping = dict(
-            zip(mappings["userId"], mappings["user_idx"])
-        )
-        self.movie_mapping = dict(
-            zip(mappings["movieId"], mappings["movie_idx"])
-        )
+        self.user_mapping = dict(zip(users["userId"], users["user_idx"]))
+        self.movie_mapping = dict(zip(movies["movieId"], movies["movie_idx"]))
         self.movie_ids = list(self.movie_mapping.keys())
 
     def _load_model(self, model_path: Path) -> None:
@@ -58,7 +55,7 @@ class Predictor:
         checkpoint = torch.load(
             model_path,
             map_location="cpu",
-            weights_only=False,
+            weights_only=True,
         )
 
         self.model = MLPEmbedding(
@@ -70,14 +67,10 @@ class Predictor:
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.eval()
 
-    def _load_interactions(self) -> None:
-        """Carrega os filmes já avaliados pelos usuários."""
-        data = pd.read_csv(settings.raw_data_path)
-
-        for user_id, group in data.groupby("userId"):
-            self.interactions[int(user_id)] = set(
-                group["movieId"].astype(int)
-            )
+    def _load_interactions(self, interactions_path: Path) -> None:
+        """Carrega os filmes já avaliados por cada usuário (pré-computado no treino)."""
+        with open(interactions_path, "rb") as f:
+            self.interactions = pickle.load(f)
 
     def predict(
         self,
@@ -109,25 +102,28 @@ class Predictor:
 
         watched = self.interactions.get(user_id, set())
         candidates = [
-            movie_id
-            for movie_id in self.movie_ids
-            if movie_id not in watched
+            movie_id for movie_id in self.movie_ids if movie_id not in watched
         ]
+        candidate_idx = [self.movie_mapping[movie_id] for movie_id in candidates]
 
+        ratings = self._predict_batch(self.user_mapping[user_id], candidate_idx)
         predictions = [
-            {
-                "movie_id": movie_id,
-                "predicted_rating": self.predict(user_id, movie_id),
-            }
-            for movie_id in candidates
+            {"movie_id": movie_id, "predicted_rating": rating}
+            for movie_id, rating in zip(candidates, ratings)
         ]
 
-        predictions.sort(
-            key=lambda item: item["predicted_rating"],
-            reverse=True,
-        )
-
+        predictions.sort(key=lambda item: item["predicted_rating"], reverse=True)
         return predictions[:top_n]
+
+    def _predict_batch(self, user_idx: int, movie_indices: list[int]) -> list[float]:
+        """Roda o forward pass do modelo em lote para vários filmes de uma vez."""
+        user_tensor = torch.full((len(movie_indices),), user_idx, dtype=torch.long)
+        movie_tensor = torch.tensor(movie_indices, dtype=torch.long)
+
+        with torch.no_grad():
+            predictions = self.model(user_tensor, movie_tensor)
+
+        return predictions.clamp(0.0, 5.0).tolist()
 
     def _validate_user(self, user_id: int) -> None:
         """Valida se o usuário existe no modelo."""
@@ -135,13 +131,9 @@ class Predictor:
             raise RuntimeError("Modelo ainda não foi carregado.")
 
         if user_id not in self.user_mapping:
-            raise ValueError(
-                f"Usuário {user_id} não encontrado no modelo."
-            )
+            raise ValueError(f"Usuário {user_id} não encontrado no modelo.")
 
     def _validate_movie(self, movie_id: int) -> None:
         """Valida se o filme existe no modelo."""
         if movie_id not in self.movie_mapping:
-            raise ValueError(
-                f"Filme {movie_id} não encontrado no modelo."
-            )
+            raise ValueError(f"Filme {movie_id} não encontrado no modelo.")
