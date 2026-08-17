@@ -86,7 +86,8 @@ src/
 └── config.py      Configurações centralizadas (Pydantic Settings)
 scripts/           Script de validação de ambiente
 tests/             Testes automatizados (pytest)
-configs/, docs/    Reservados para configs adicionais e documentação
+docs/              Model Card (docs/model_card.md)
+configs/           Reservado — configuração já é centralizada em .env/config.py
 dvc.yaml           Definição do pipeline (3 stages)
 Dockerfile         Imagem multi-stage para treino
 Dockerfile.api      Imagem multi-stage para servir a API
